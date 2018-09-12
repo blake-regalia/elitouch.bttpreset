@@ -1,0 +1,17 @@
+{
+  "name": "elitouch",
+  "version": "1.0.0",
+  "description": "The Developer's Elite Preset for BetterTouchTool",
+  "license": "ISC",
+  "author": "Blake Regalia <blake.regalia@gmail.com> (http://blake-regalia.com)",
+  "files": [
+    "build"
+  ],
+  "repository": "blake-regalia/jmacs.js",
+  "dependencies": {
+    "uuid": "^3.3.2"
+  },
+  "devDependencies": {
+    "emk": "^1.4.1"
+  }
+}
