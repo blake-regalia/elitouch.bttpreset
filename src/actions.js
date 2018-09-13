@@ -18,6 +18,13 @@ module.exports = (s_uuid, a_actions) => a_actions.map((g_action, i_action) => {
 			BTTInlineAppleScript: applescript(g_action.script),
 		};
 	}
+	else if(g_action.async) {
+		g_block = {...g_block,
+			BTTPredefinedActionType: 195,
+			BTTPredefinedActionName: 'Run Apple Script (async in background)',
+			BTTInlineAppleScript: applescript(g_action.async),
+		};
+	}
 	else if(g_action.delay) {
 		g_block = {...g_block,
 			BTTPredefinedActionType: 129,
