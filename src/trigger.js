@@ -55,6 +55,10 @@ class Trigger {
 			},
 		});
 	}
+
+	delete() {
+		return /* syntax: applescript */ `delete_trigger "${uuid(this.id)}"`;
+	}
 }
 
 module.exports = (...a_args) => new Trigger(...a_args);

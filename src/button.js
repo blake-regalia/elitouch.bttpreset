@@ -20,7 +20,6 @@ class button_spawner {
 		let gc_global = this.global.button;
 
 		return {
-			BTTTouchBarButtonName: gc_button.name,
 			BTTTouchBarItemPlacement: gc_button.placement? H_PLACEMENTS[gc_button.placement]: 0,
 
 			BTTTouchBarButtonColor: opt(gc_button.color, gc_global.color, '75.323769, 75.323769, 75.323769, 255.000000'),

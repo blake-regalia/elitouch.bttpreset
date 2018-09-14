@@ -28,6 +28,8 @@ const on_pausing = gc_global => /* syntax: applescript */ `
 	${trigger('Spotify/seek-info').hide()}
 	${trigger('Spotify/volume').hide()}
 	${trigger('Spotify/volume-info').hide()}
+
+	set_number_variable "spotify_playing" to 0
 `;
 
 const on_playing = () => /* syntax: applescript */ `
@@ -42,6 +44,8 @@ const on_playing = () => /* syntax: applescript */ `
 
 	${trigger('Spotify/previous').show()}
 	${trigger('Spotify/next').show()}
+
+	set_number_variable "spotify_playing" to 1
 `;
 
 const now_playing = gc_global => /* syntax: applescript */ `
@@ -54,13 +58,13 @@ const now_playing = gc_global => /* syntax: applescript */ `
 	end tell
 
 	tell application "BetterTouchTool"
+		set_number_variable "spotify_interacting" to 1
+
 		-- playing
 		if b_pausing
 			${on_pausing(gc_global)}
-			set_number_variable "spotify_playing" to 0
 		else
 			${on_playing(gc_global)}
-			set_number_variable "spotify_playing" to 1
 		end if
 
 		${/*
@@ -195,6 +199,67 @@ module.exports = (gc_global, gc_module={}) => {
 
 		// touchbar
 		...[
+			// state monitor
+			{
+				BTTWidgetName: 'Spotify Monitor',
+				BTTTriggerType: 639,
+				BTTTriggerTypeDescription: 'Apple Script Widget',
+				BTTTriggerClass: 'BTTTriggerTypeTouchBar',
+				BTTPredefinedActionType: -1,
+				BTTPredefinedActionName: 'No Action',
+				BTTEnabled2: 1,
+				BTTUUID: uuid('Spotify/monitor'),
+				BTTEnabled: 1,
+				BTTOrder: gc_global.index.touchbar++,
+				BTTTriggerConfig: {
+					BTTScriptType: 0,
+					BTTTouchBarButtonColor: gc_global.button.color,
+					BTTTouchBarItemIconWidth: 22,
+					BTTTouchBarItemPlacement: 0,
+					BTTTouchBarAlternateBackgroundColor: '128.829533, 128.829533, 128.829533, 255.000000',
+					BTTTouchBarButtonCornerRadius: 6,
+					BTTTouchBarScriptUpdateInterval: 1.0,
+					BTTTouchBarAppleScriptString: /* syntax: applescript */ `
+						set b_playing to 0
+						tell application "Spotify"
+							if player state is playing then
+								set b_playing to 1
+							end if
+						end tell
+
+						tell application "BetterTouchTool"
+							set b_interacting to get_number_variable "spotify_interacting"
+							if class of b_interacting is real and b_interacting is equal to 1 then
+								return ""
+							end if
+
+							set b_state to get_number_variable "spotify_playing"
+
+							-- no state
+							if class of b_state is not real then
+								return ""
+							end if
+
+							if b_playing is not equal to b_state then
+								if b_playing is equal to 1 then
+									${on_playing(gc_global)}
+								else
+									${on_pausing(gc_global)}
+								end if
+							end if
+						end tell
+
+						return ""
+					`,
+					BTTTouchBarAppleScriptStringRunOnInit: false,
+					BTTTouchBarButtonName: 'Spotify Monitor',
+					BTTTouchBarAppleScriptUsePath: 0,
+					BTTTouchBarFreeSpaceAfterButton: 0,
+					BTTTouchBarItemIconHeight: 22,
+					BTTTouchBarItemPadding: 0,
+				},
+			},
+
 			// now playing widget
 			{
 				BTTTriggerType: 652,
@@ -206,7 +271,7 @@ module.exports = (gc_global, gc_module={}) => {
 				BTTUUID: uuid(`Spotify/now-playing`),
 				BTTEnabled: 1,
 				BTTOrder: gc_global.index.touchbar++,
-				BTTAdditionalActions: actions(`Spotify/now-playing`, [
+				BTTAdditionalActions: actions('Spotify/now-playing', [
 					{
 						script: now_playing(gc_global),
 					},
@@ -228,15 +293,15 @@ module.exports = (gc_global, gc_module={}) => {
 							if b_now_playing is not equal to b_was_playing then
 								tell application "BetterTouchTool"
 									-- playing
-									if b_now_playing
+									if b_now_playing is equal to 1
 										${on_playing(gc_global)}
-										set_number_variable "spotify_playing" to 0
 									-- pausing
 									else
 										${on_pausing(gc_global)}
-										set_number_variable "spotify_playing" to 1
 									end if
 								end tell
+
+								set b_was_playing to b_now_playing
 							end if
 
 							tell application "Spotify"
@@ -261,25 +326,27 @@ module.exports = (gc_global, gc_module={}) => {
 								end if
 							end tell
 
-							if b_still_playing is not equal to b_now_playing then
+							if (b_still_playing is not equal to b_now_playing) or (b_still_playing is not equal to b_was_playing) then
 								tell application "BetterTouchTool"
 									-- playing
-									if b_still_playing
+									if b_still_playing is equal to 1
 										${on_playing(gc_global)}
-										set_number_variable "spotify_playing" to 0
 									-- pausing
 									else
 										${on_pausing(gc_global)}
-										set_number_variable "spotify_playing" to 1
 									end if
 								end tell
 							end if
+
+							tell application "BetterTouchTool"
+								set_number_variable "spotify_interacting" to 0
+							end tell
 						`,
 					},
 				]),
 				BTTTriggerConfig: {
 					BTTTouchBarHideCover: 1,
-					BTTTouchBarButtonColor: '75.323769, 75.323769, 75.323769, 255.000000',
+					BTTTouchBarButtonColor: gc_global.button.color,
 					BTTTouchBarLine1MaxChars: 22,
 					BTTTouchBarButtonFontSize: 12,
 					BTTTouchBarItemIconWidth: 22,
@@ -332,7 +399,7 @@ module.exports = (gc_global, gc_module={}) => {
 				BTTIconData: 'TU0AKgAAGIhERETERUVFyUlJSRX___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8AREREzERERP9ERETKRERED____wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AElJSRVERETaRERE_0RERMhAQEAM____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8AQEBAHERERNtERET_Q0NDvU1NTQr___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wBGRkYhRUVF40RERP9ERES5VVVVBv___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AEdHRyRERETlRERE_0RERLFVVVUG____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8ARERELUREROpERET_RUVFp1VVVQP___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wBDQ0MuRERE8ERERP9ERESkAAAAAf___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AEZGRjdERETwRERE_0RERJYAAAAB____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8AQ0NDPURERPVERET_RUVFkP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wBGRkZCRERE9URERP9ERESH____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AEVFRU5ERET5RERE_0RERHz___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8AQ0NDUERERPxERET_RUVFd____wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wBDQ0NbRERE_ERERP5ERERp____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AENDQ2NERET+RERE_kNDQ2P___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8AREREaURERP5ERET8Q0NDW____wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wBDQ0N2RERE_0RERPxDQ0NQ____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AERERHtERET_RERE+UVFRU7___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8AREREh0RERP9ERET1RkZGQv___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wBERESPRERE_0RERPVDQ0M9____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8AAAAAAURERJZERET_RERE8EZGRjf___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wAAAAABRUVFo0RERP9ERETwRERELf___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AFVVVQNERESmRERE_0REROpEREQt____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8AVVVVBkRERLFERET_RERE5EdHRyT___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wBVVVUGREREt0RERP9FRUXjQEBAIP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AE1NTQpDQ0O9RERE_0RERNtAQEAc____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8ATU1NCkRERMhERET_RERE2klJSRX___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wBEREQPREREyERERP9ERETM____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8ARERED0RERMhERET_REREzP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8ATU1NCkRERMdERET_RERE20lJSRX___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8ATU1NCkNDQ71ERET_RERE20BAQBz___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8AVVVVBkVFRbZERET_RUVF40RERCL___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8AVVVVBkRERLFERET_RERE5kdHRyT___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8AVVVVA0RERKRERET_RERE6kRERC3___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8AAAAAAURERKFERET_RERE8EFBQS____8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8AAAAAAURERJZERET_RERE8EZGRjf___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AEVFRY1ERET_RERE9UVFRT____8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AERERIdERET_RERE90ZGRkL___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AENDQ3pERET_RERE+UVFRU7___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AERERHVERET_RERE_ERERFL___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AERERGlERET+RERE_ENDQ1v___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AERERGFERET+RERE_kRERGX___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AENDQ1tERET8RERE_0RERGn___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AEVFRU5ERET8RERE_0RERHj___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AENDQ0xERET5RERE_0NDQ37___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AEZGRkJERET1RERE_0RERIf___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AERERDxERET1RERE_0RERJL___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AEZGRjdERETwRERE_0RERJYAAAAB____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AERERC1ERETvRERE_0RERKRVVVUD____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AERERC1ERETqRERE_0RERKhVVVUD____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AEdHRyRFRUXjRERE_0RERLFVVVUG____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AEJCQh9FRUXjRERE_0VFRbpVVVUG____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AEBAQBxERETbRERE_0NDQ71NTU0K____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AElJSRVERETZRERE_0RERMg7OzsN____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wBERETLRERE_0RERMtEREQP____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8ARUVFxURERMpJSUkV____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AP___wD___8A____AAAQAQAAAwAAAAEAHAAAAQEAAwAAAAEAOAAAAQIAAwAAAAQAABlOAQMAAwAAAAEAAQAAAQYAAwAAAAEAAgAAAQoAAwAAAAEAAQAAAREABAAAAAEAAAAIARIAAwAAAAEAAQAAARUAAwAAAAEABAAAARYAAwAAAAEAOAAAARcABAAAAAEAABiAARwAAwAAAAEAAQAAASgAAwAAAAEAAgAAAVIAAwAAAAEAAgAAAVMAAwAAAAQAABlWh3MABwAADEgAABleAAAAAAAIAAgACAAIAAEAAQABAAEAAAxITGlubwIQAABtbnRyUkdCIFhZWiAHzgACAAkABgAxAABhY3NwTVNGVAAAAABJRUMgc1JHQgAAAAAAAAAAAAAAAAAA9tYAAQAAAADTLUhQICAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABFjcHJ0AAABUAAAADNkZXNjAAABhAAAAGx3dHB0AAAB8AAAABRia3B0AAACBAAAABRyWFlaAAACGAAAABRnWFlaAAACLAAAABRiWFlaAAACQAAAABRkbW5kAAACVAAAAHBkbWRkAAACxAAAAIh2dWVkAAADTAAAAIZ2aWV3AAAD1AAAACRsdW1pAAAD+AAAABRtZWFzAAAEDAAAACR0ZWNoAAAEMAAAAAxyVFJDAAAEPAAACAxnVFJDAAAEPAAACAxiVFJDAAAEPAAACAx0ZXh0AAAAAENvcHlyaWdodCAoYykgMTk5OCBIZXdsZXR0LVBhY2thcmQgQ29tcGFueQAAZGVzYwAAAAAAAAASc1JHQiBJRUM2MTk2Ni0yLjEAAAAAAAAAAAAAABJzUkdCIElFQzYxOTY2LTIuMQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWFlaIAAAAAAAAPNRAAEAAAABFsxYWVogAAAAAAAAAAAAAAAAAAAAAFhZWiAAAAAAAABvogAAOPUAAAOQWFlaIAAAAAAAAGKZAAC3hQAAGNpYWVogAAAAAAAAJKAAAA+EAAC2z2Rlc2MAAAAAAAAAFklFQyBodHRwOi8vd3d3LmllYy5jaAAAAAAAAAAAAAAAFklFQyBodHRwOi8vd3d3LmllYy5jaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABkZXNjAAAAAAAAAC5JRUMgNjE5NjYtMi4xIERlZmF1bHQgUkdCIGNvbG91ciBzcGFjZSAtIHNSR0IAAAAAAAAAAAAAAC5JRUMgNjE5NjYtMi4xIERlZmF1bHQgUkdCIGNvbG91ciBzcGFjZSAtIHNSR0IAAAAAAAAAAAAAAAAAAAAAAAAAAAAAZGVzYwAAAAAAAAAsUmVmZXJlbmNlIFZpZXdpbmcgQ29uZGl0aW9uIGluIElFQzYxOTY2LTIuMQAAAAAAAAAAAAAALFJlZmVyZW5jZSBWaWV3aW5nIENvbmRpdGlvbiBpbiBJRUM2MTk2Ni0yLjEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHZpZXcAAAAAABOk_gAUXy4AEM8UAAPtzAAEEwsAA1yeAAAAAVhZWiAAAAAAAEwJVgBQAAAAVx_nbWVhcwAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAo8AAAACc2lnIAAAAABDUlQgY3VydgAAAAAAAAQAAAAABQAKAA8AFAAZAB4AIwAoAC0AMgA3ADsAQABFAEoATwBUAFkAXgBjAGgAbQByAHcAfACBAIYAiwCQAJUAmgCfAKQAqQCuALIAtwC8AMEAxgDLANAA1QDbAOAA5QDrAPAA9gD7AQEBBwENARMBGQEfASUBKwEyATgBPgFFAUwBUgFZAWABZwFuAXUBfAGDAYsBkgGaAaEBqQGxAbkBwQHJAdEB2QHhAekB8gH6AgMCDAIUAh0CJgIvAjgCQQJLAlQCXQJnAnECegKEAo4CmAKiAqwCtgLBAssC1QLgAusC9QMAAwsDFgMhAy0DOANDA08DWgNmA3IDfgOKA5YDogOuA7oDxwPTA+AD7AP5BAYEEwQgBC0EOwRIBFUEYwRxBH4EjASaBKgEtgTEBNME4QTwBP4FDQUcBSsFOgVJBVgFZwV3BYYFlgWmBbUFxQXVBeUF9gYGBhYGJwY3BkgGWQZqBnsGjAadBq8GwAbRBuMG9QcHBxkHKwc9B08HYQd0B4YHmQesB78H0gflB_gICwgfCDIIRghaCG4IggiWCKoIvgjSCOcI+wkQCSUJOglPCWQJeQmPCaQJugnPCeUJ+woRCicKPQpUCmoKgQqYCq4KxQrcCvMLCwsiCzkLUQtpC4ALmAuwC8gL4Qv5DBIMKgxDDFwMdQyODKcMwAzZDPMNDQ0mDUANWg10DY4NqQ3DDd4N+A4TDi4OSQ5kDn8Omw62DtIO7g8JDyUPQQ9eD3oPlg+zD88P7BAJECYQQxBhEH4QmxC5ENcQ9RETETERTxFtEYwRqhHJEegSBxImEkUSZBKEEqMSwxLjEwMTIxNDE2MTgxOkE8UT5RQGFCcUSRRqFIsUrRTOFPAVEhU0FVYVeBWbFb0V4BYDFiYWSRZsFo8WshbWFvoXHRdBF2UXiReuF9IX9xgbGEAYZRiKGK8Y1Rj6GSAZRRlrGZEZtxndGgQaKhpRGncanhrFGuwbFBs7G2MbihuyG9ocAhwqHFIcexyjHMwc9R0eHUcdcB2ZHcMd7B4WHkAeah6UHr4e6R8THz4faR+UH78f6iAVIEEgbCCYIMQg8CEcIUghdSGhIc4h+yInIlUigiKvIt0jCiM4I2YjlCPCI_AkHyRNJHwkqyTaJQklOCVoJZclxyX3JicmVyaHJrcm6CcYJ0kneierJ9woDSg_KHEooijUKQYpOClrKZ0p0CoCKjUqaCqbKs8rAis2K2krnSvRLAUsOSxuLKIs1y0MLUEtdi2rLeEuFi5MLoIuty7uLyQvWi+RL8cv_jA1MGwwpDDbMRIxSjGCMbox8jIqMmMymzLUMw0zRjN_M7gz8TQrNGU0njTYNRM1TTWHNcI1_TY3NnI2rjbpNyQ3YDecN9c4FDhQOIw4yDkFOUI5fzm8Ofk6Njp0OrI67zstO2s7qjvoPCc8ZTykPOM9Ij1hPaE94D4gPmA+oD7gPyE_YT+iP+JAI0BkQKZA50EpQWpBrEHuQjBCckK1QvdDOkN9Q8BEA0RHRIpEzkUSRVVFmkXeRiJGZ0arRvBHNUd7R8BIBUhLSJFI10kdSWNJqUnwSjdKfUrESwxLU0uaS+JMKkxyTLpNAk1KTZNN3E4lTm5Ot08AT0lPk0_dUCdQcVC7UQZRUFGbUeZSMVJ8UsdTE1NfU6pT9lRCVI9U21UoVXVVwlYPVlxWqVb3V0RXklfgWC9YfVjLWRpZaVm4WgdaVlqmWvVbRVuVW+VcNVyGXNZdJ114XcleGl5sXr1fD19hX7NgBWBXYKpg_GFPYaJh9WJJYpxi8GNDY5dj62RAZJRk6WU9ZZJl52Y9ZpJm6Gc9Z5Nn6Wg_aJZo7GlDaZpp8WpIap9q92tPa6dr_2xXbK9tCG1gbbluEm5rbsRvHm94b9FwK3CGcOBxOnGVcfByS3KmcwFzXXO4dBR0cHTMdSh1hXXhdj52m3b4d1Z3s3gReG54zHkqeYl553pGeqV7BHtje8J8IXyBfOF9QX2hfgF+Yn7CfyN_hH_lgEeAqIEKgWuBzYIwgpKC9INXg7qEHYSAhOOFR4Wrhg6GcobXhzuHn4gEiGmIzokziZmJ_opkisqLMIuWi_yMY4zKjTGNmI3_jmaOzo82j56QBpBukNaRP5GokhGSepLjk02TtpQglIqU9JVflcmWNJaflwqXdZfgmEyYuJkkmZCZ_JpomtWbQpuvnByciZz3nWSd0p5Anq6fHZ+Ln_qgaaDYoUehtqImopajBqN2o+akVqTHpTilqaYapoum_adup+CoUqjEqTepqaocqo+rAqt1q+msXKzQrUStuK4trqGvFq+LsACwdbDqsWCx1rJLssKzOLOutCW0nLUTtYq2AbZ5tvC3aLfguFm40blKucK6O7q1uy67p7whvJu9Fb2Pvgq+hL7_v3q_9cBwwOzBZ8Hjwl_C28NYw9TEUcTOxUvFyMZGxsPHQce_yD3IvMk6ybnKOMq3yzbLtsw1zLXNNc21zjbOts83z7jQOdC60TzRvtI_0sHTRNPG1EnUy9VO1dHWVdbY11zX4Nhk2OjZbNnx2nba+9uA3AXcit0Q3ZbeHN6i3ynfr+A24L3hROHM4lPi2+Nj4+vkc+T85YTmDeaW5x_nqegy6LzpRunQ6lvq5etw6_vshu0R7ZzuKO6070DvzPBY8OXxcvH_8ozzGfOn9DT0wvVQ9d72bfb794r4Gfio+Tj5x_pX+uf7d_wH_Jj9Kf26_kv+3P9t__8=',
 				BTTTriggerConfig: {
 					BTTTouchBarApplyCornerRadiusTo: 2,
-					BTTTouchBarButtonColor: '75.323769, 75.323769, 75.323769, 255.000000',
+					BTTTouchBarButtonColor: gc_global.button.color,
 					BTTTouchBarButtonFontSize: 10,
 					BTTTouchBarItemPlacement: 2,
 					BTTTouchBarItemIconWidth: 7,
@@ -418,7 +485,7 @@ module.exports = (gc_global, gc_module={}) => {
 				BTTOrder: gc_global.index.touchbar++,
 				BTTTriggerConfig: {
 					BTTScriptType: 0,
-					BTTTouchBarButtonColor: '75.323769, 75.323769, 75.323769, 255.000000',
+					BTTTouchBarButtonColor: gc_global.button.color,
 					BTTTouchBarItemIconWidth: 22,
 					BTTTouchBarButtonTextAlignment: 3,
 					BTTTouchBarItemPlacement: 2,
@@ -543,7 +610,7 @@ module.exports = (gc_global, gc_module={}) => {
 				BTTOrder: gc_global.index.touchbar++,
 				BTTTriggerConfig: {
 					BTTScriptType: 0,
-					BTTTouchBarButtonColor: '75.323769, 75.323769, 75.323769, 255.000000',
+					BTTTouchBarButtonColor: gc_global.button.color,
 					BTTTouchBarItemIconWidth: 22,
 					BTTTouchBarButtonTextAlignment: 3,
 					BTTTouchBarItemPlacement: 2,

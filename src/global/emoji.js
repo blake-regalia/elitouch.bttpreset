@@ -1,4 +1,5 @@
 const _button = require('../button.js');
+const uuid = require('../uuid.js');
 
 module.exports = (gc_global, gc_module) => {
 	const button = _button.defaults(gc_global);
@@ -11,7 +12,7 @@ module.exports = (gc_global, gc_module) => {
 			BTTPredefinedActionType: -1,
 			BTTPredefinedActionName: 'No Action',
 			BTTEnabled2: 1,
-			BTTUUID: '716B7B55-4CF1-4468-92BE-312FF400DE5E',
+			BTTUUID: uuid('Emoji/group'),
 			BTTEnabled: 1,
 			BTTOrder: gc_global.index.touchbar++,
 			BTTAdditionalActions: [
@@ -22,7 +23,7 @@ module.exports = (gc_global, gc_module) => {
 					BTTPredefinedActionType: -1,
 					BTTPredefinedActionName: 'No Action',
 					BTTEnabled2: 1,
-					BTTUUID: '1BB8960A-169A-4C8A-BA44-BA1976EBA715',
+					BTTUUID: uuid('Emoji/group#open'),
 					BTTEnabled: 1,
 					BTTOrder: 0,
 					BTTTriggerConfig: {
@@ -30,7 +31,7 @@ module.exports = (gc_global, gc_module) => {
 						BTTTouchBarItemIconHeight: 22,
 						BTTTouchBarButtonCornerRadius: 6,
 						BTTTouchBarItemPlacement: 0,
-						BTTTouchBarButtonColor: '75.323769, 75.323769, 75.323769, 255.000000',
+						BTTTouchBarButtonColor: gc_global.button.color,
 						BTTTouchBarItemIconWidth: 22,
 						BTTTBWidgetWidth: 1020,
 						BTTTouchBarFreeSpaceAfterButton: 0,
@@ -44,7 +45,7 @@ module.exports = (gc_global, gc_module) => {
 					BTTPredefinedActionType: 191,
 					BTTPredefinedActionName: 'Close currently open Touch Bar group',
 					BTTEnabled2: 1,
-					BTTUUID: 'F6E7A8F1-1801-4499-9EEE-EDDDF070FC9D',
+					BTTUUID: uuid('Emoji/group#close'),
 					BTTEnabled: 1,
 					BTTOrder: 1,
 					BTTIconData: 'Standard Close Icon',
